@@ -34,48 +34,20 @@ fn lexer(code: &str) -> Vec<Tokens> {
     while counter < chars.len() {
         let chr = chars[counter];
 
-        let prev_is_text =!( counter > 0 && chars[counter - 1].is_whitespace());
-
-        let next_is_text =! ( counter + 1 < chars.len() && chars[counter + 1].is_whitespace());
-
         if chr == '#' {
             tokens.push(Tokens::Heading);
         } else if chr == '\'' {
-            if prev_is_text || next_is_text {
-                tokens.push(Tokens::TEXT(chr.to_string()));
-            } else {
-                tokens.push(Tokens::QOUTE);
-            }
+            tokens.push(Tokens::QOUTE);
         } else if chr == '"' {
-            if prev_is_text || next_is_text {
-                tokens.push(Tokens::TEXT(chr.to_string()));
-            } else {
-                tokens.push(Tokens::DoubleQOUTE);
-            }
+            tokens.push(Tokens::DoubleQOUTE);
         } else if chr == '*' {
-            if prev_is_text || next_is_text {
-                tokens.push(Tokens::TEXT(chr.to_string()));
-            } else {
-                tokens.push(Tokens::STAR);
-            }
+            tokens.push(Tokens::STAR);
         } else if chr == '~' {
-            if prev_is_text || next_is_text {
-                tokens.push(Tokens::TEXT(chr.to_string()));
-            } else {
-                tokens.push(Tokens::Tilde);
-            }
+            tokens.push(Tokens::Tilde);
         } else if chr == '`' {
-            if prev_is_text || next_is_text {
-                tokens.push(Tokens::TEXT(chr.to_string()));
-            } else {
-                tokens.push(Tokens::BackQoute);
-            }
+            tokens.push(Tokens::BackQoute);
         } else if chr == ';' {
-            if prev_is_text || !next_is_text {
-                tokens.push(Tokens::NL);
-            } else {
-                tokens.push(Tokens::TEXT(chr.to_string()));
-            }
+            tokens.push(Tokens::NL);
         } else if chr == '|' {
             tokens.push(Tokens::ParaGraph);
         } else {
@@ -89,7 +61,6 @@ fn lexer(code: &str) -> Vec<Tokens> {
     tokens
 }
 
-// Processor function
 // Processor function
 fn processor(code: Vec<Tokens>) -> String {
     if code.first() != Some(&Tokens::START) {
@@ -149,6 +120,52 @@ fn processor(code: Vec<Tokens>) -> String {
 
             a_code.push_str("</p>");
             counter += 1;
+            continue;
+        }
+        // Bold
+        else if matches!(token, Tokens::STAR) && !matches!(code[counter + 1], Tokens::STAR) {
+            a_code.push_str("<b>");
+            counter += 1;
+
+            while counter + 1 < code.len() {
+                let token = &code[counter];
+
+                if matches!(token, Tokens::STAR) {
+                    break;
+                }
+
+                if let Tokens::TEXT(text) = token {
+                    a_code.push_str(text);
+                }
+
+                counter += 1;
+            }
+
+            a_code.push_str("</b>");
+            counter += 1;
+            continue;
+        }
+        // Strong bold
+        else if matches!(token, Tokens::STAR) && matches!(code[counter + 1], Tokens::STAR) {
+            a_code.push_str("<strong>");
+            counter += 1;
+
+            while counter + 1 < code.len() {
+                let token = &code[counter];
+
+                if matches!(token, Tokens::STAR) && matches!(code[counter + 1], Tokens::STAR) {
+                    break;
+                }
+
+                if let Tokens::TEXT(text) = token {
+                    a_code.push_str(text);
+                }
+
+                counter += 1;
+            }
+
+            a_code.push_str("</strong>");
+            counter += 2;
             continue;
         }
         // New line
