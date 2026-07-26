@@ -1,6 +1,7 @@
 use std::fs;
 use std::fs::File;
 use std::io::Write;
+
 fn main() {
     let path = "file.test";
     let code = fs::read_to_string(path).expect("Error: failed to read file.");
@@ -8,6 +9,7 @@ fn main() {
     let code = processor(code);
     compiler(&code);
 }
+
 // Tokens
 #[derive(Debug, PartialEq, Eq)]
 enum Tokens {
@@ -19,9 +21,9 @@ enum Tokens {
     DoubleQOUTE,
     STAR,
     Tilde,
-    BackQoute,
     NL,
     ParaGraph,
+    BackTick,
 }
 
 // Lexer function
@@ -44,12 +46,12 @@ fn lexer(code: &str) -> Vec<Tokens> {
             tokens.push(Tokens::STAR);
         } else if chr == '~' {
             tokens.push(Tokens::Tilde);
-        } else if chr == '`' {
-            tokens.push(Tokens::BackQoute);
         } else if chr == ';' {
             tokens.push(Tokens::NL);
         } else if chr == '|' {
             tokens.push(Tokens::ParaGraph);
+        } else if chr == '`' {
+            tokens.push(Tokens::BackTick);
         } else {
             tokens.push(Tokens::TEXT(chr.to_string()));
         }
@@ -122,9 +124,11 @@ fn processor(code: Vec<Tokens>) -> String {
             counter += 1;
             continue;
         }
-        // Bold
-        else if matches!(token, Tokens::STAR) && !matches!(code[counter + 1], Tokens::STAR) {
-            a_code.push_str("<b>");
+        // Italic
+        else if matches!(token, Tokens::STAR)
+            && !matches!(code.get(counter + 1), Some(Tokens::STAR))
+        {
+            a_code.push_str("<em>");
             counter += 1;
 
             while counter + 1 < code.len() {
@@ -141,19 +145,23 @@ fn processor(code: Vec<Tokens>) -> String {
                 counter += 1;
             }
 
-            a_code.push_str("</b>");
+            a_code.push_str("</em>");
             counter += 1;
             continue;
         }
         // Strong bold
-        else if matches!(token, Tokens::STAR) && matches!(code[counter + 1], Tokens::STAR) {
+        else if matches!(token, Tokens::STAR)
+            && matches!(code.get(counter + 1), Some(Tokens::STAR))
+        {
             a_code.push_str("<strong>");
-            counter += 1;
+            counter += 2;
 
             while counter + 1 < code.len() {
                 let token = &code[counter];
 
-                if matches!(token, Tokens::STAR) && matches!(code[counter + 1], Tokens::STAR) {
+                if matches!(token, Tokens::STAR)
+                    && matches!(code.get(counter + 1), Some(Tokens::STAR))
+                {
                     break;
                 }
 
@@ -168,16 +176,69 @@ fn processor(code: Vec<Tokens>) -> String {
             counter += 2;
             continue;
         }
+        // Strike
+        else if matches!(token, Tokens::Tilde)
+            && matches!(code.get(counter + 1), Some(Tokens::Tilde))
+        {
+            a_code.push_str("<del>");
+            counter += 2;
+
+            while counter + 1 < code.len() {
+                let token = &code[counter];
+
+                if matches!(token, Tokens::Tilde)
+                    && matches!(code.get(counter + 1), Some(Tokens::Tilde))
+                {
+                    break;
+                }
+
+                if let Tokens::TEXT(text) = token {
+                    a_code.push_str(text);
+                }
+
+                counter += 1;
+            }
+
+            a_code.push_str("</del>");
+            counter += 2;
+            continue;
+        }
+        // Code
+        else if matches!(token, Tokens::BackTick) {
+            a_code.push_str("<code>");
+            counter += 1;
+
+            while counter < code.len() {
+                let token = &code[counter];
+
+                if matches!(token, Tokens::BackTick) {
+                    break;
+                }
+
+                if let Tokens::TEXT(text) = token {
+                    a_code.push_str(text);
+                }
+
+                counter += 1;
+            }
+
+            a_code.push_str("</code>");
+            counter += 1;
+            continue;
+        }
         // New line
         else if matches!(token, Tokens::NL) {
             a_code.push_str("<br>");
             counter += 1;
             continue;
-        } else if matches!(token, Tokens::TEXT(_)) {
+        }
+        // Text
+        else if matches!(token, Tokens::TEXT(_)) {
             if let Tokens::TEXT(text) = &code[counter] {
                 a_code.push_str(text);
             }
         }
+
         counter += 1;
     }
 
